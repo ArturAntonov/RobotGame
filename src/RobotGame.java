@@ -1,31 +1,40 @@
+import java.util.ArrayList;
 import java.util.Random;
 
 /**
  * Treasure Adventure
  * Robot Game
  * Этот класс также выполняет роль менеджера игры
+ * Это основной класс процесса игры. Тут все и происходит
  *
  * @author  Artur Antonov
- * @version 31.08.2016
+ * @version 2.0.050916
  */
 public class RobotGame {
 
     // Константы
-    private final int FIELD_HEIGHT = 10;
-    private final int FIELD_WIDTH = 10;
-    private final char SYMBOL_EMPTY = '.';
-    private final char SYMBOL_ENEMY = 'X';
-    private final char SYMBOL_TREASURE = '!';
-    private final char SYMBOL_PLAYER = 'o';
-    private final long TURN_DELAY = 500;
+    final int FIELD_HEIGHT = 10;
+    final int FIELD_WIDTH = 10;
+    final char SYMBOL_EMPTY = '.';
+    final char SYMBOL_ENEMY = 'X';
+    final char SYMBOL_TREASURE = '!';
+    final char SYMBOL_PLAYER = 'o';
+    final long TURN_DELAY = 500;
 
-    // Координаты ходов
-    private int[] lastPlayerTurnCoord = new int[2];
-    private int[] lastEnemyTurnCoord = new int[2];
-    private int[] treasureCoord = new int[2];
+
+    // Участники игры
+    Player player;
+    Enemy enemy;
+    Treasure treasure;
+    // Список со всеми участниками игры
+    ArrayList<Point> members;
 
     Random random = new Random();
+    //
+    private boolean isGameOver = false;
+    private String winner = "";
 
+    // Поле для игры
     private char[][] field = new char[FIELD_HEIGHT][FIELD_WIDTH];
 
     public static void main(String[] args) {
@@ -38,130 +47,79 @@ public class RobotGame {
         // Начальная отрисовка игрового поля
         drawField();
 
-        while (true) {
-            playerTurn();
-            reInitField();
-            drawField();
-            if (isWinPlayer()) {
-                System.out.println("Congratulation!!!");
-                System.out.println("Player WIN!!! Player have treasure");
-                break;
+        // Основной цикл игры
+        while (!isGameOver) {
+            for (Point member : members) {
+                member.move();
+                if (member.isWin()) break;
             }
-
-            // Для просмотра и тестирования ходы автоматизированы. Добавлена задержка между ходами
+            drawField();
             try {
                 Thread.sleep(TURN_DELAY);
             } catch (InterruptedException ex) {
                 ex.getStackTrace();
             }
+        }
+        System.out.println("--------ПОБЕДИТЕЛЬ ОПРЕДЕЛЕН--------");
+        drawField();
 
-            computerTurn();
-            reInitField();
-            drawField();
-            if (isLoosePlayer()) {
-                System.out.println("GAME OVER");
-                System.out.println("Player loose. Enemy WIN!");
+        // Чествование победителя
+        switch (winner) {
+            case "Player":
+                System.out.println("Победитель - Робот-Игрок!");
                 break;
-            }
-        }
-
-    }
-
-    /**
-     * Метод для обновления поля с актуальными координатами
-     */
-    private void reInitField() {
-        for (int i = 0; i < FIELD_HEIGHT; i++) {
-            for( int j = 0; j < FIELD_WIDTH; j++) {
-                field[i][j] = SYMBOL_EMPTY;
-            }
-        }
-
-        //Добавление координат игрока, противника и приза
-        field[treasureCoord[0]][treasureCoord[1]] = SYMBOL_TREASURE;
-        field[lastPlayerTurnCoord[0]][lastPlayerTurnCoord[1]]= SYMBOL_PLAYER;
-        field[lastEnemyTurnCoord[0]][lastEnemyTurnCoord[1]] = SYMBOL_ENEMY;
-    }
-
-    /**
-     * Ход игрока. Пока что автоматизирован. Логика такая же как и у компьютера.
-     * Проверка на совпадение с врагом.
-     */
-    private void playerTurn() {
-        while (true) {
-            int playerTurnY = random.nextInt(FIELD_HEIGHT);
-            int playerTurnX = random.nextInt(FIELD_WIDTH);
-            if (playerTurnY != lastEnemyTurnCoord[0] && playerTurnX != lastEnemyTurnCoord[1]) {
-                // Размещение хода на поле
-                field[playerTurnY][playerTurnX] = SYMBOL_PLAYER;
-                // Сохранение последнего хода
-                lastPlayerTurnCoord[0] = playerTurnY;
-                lastPlayerTurnCoord[1] = playerTurnX;
+            case "Enemy":
+                System.out.println("Победитель - Робот-Противник!");
                 break;
-            }
-        }
-    }
-
-    /**
-     * Метод для хода компьютера.
-     * Ход будет выполняться на рандомные координаты поля, отличные от координат сокровища
-     */
-    private void computerTurn() {
-        while (true) {
-            int enemyTurnY = random.nextInt(FIELD_HEIGHT);
-            int enemyTurnX = random.nextInt(FIELD_WIDTH);
-            if (enemyTurnY != treasureCoord[0] && enemyTurnX != treasureCoord[1]) {
-                // Размещение хода на поле
-                field[enemyTurnY][enemyTurnX] = SYMBOL_ENEMY;
-                // Сохранение последнего хода
-                lastEnemyTurnCoord[0] = enemyTurnY;
-                lastEnemyTurnCoord[1] = enemyTurnX;
-                break;
-            }
+            default:
+                System.out.println("Ничья!");
         }
 
     }
 
-    // Метод для проверки проигрыша игрока. Координаты врага совпадают с координатами игрока
-    private boolean isLoosePlayer() {
-        int playerY = lastPlayerTurnCoord[0];
-        int playerX = lastPlayerTurnCoord[1];
-        return (playerY == lastEnemyTurnCoord[0] && playerX == lastEnemyTurnCoord[1]);
-    }
 
-    // Метод для проверки выигрыша игрока. Координаты игрока совпали с координатами сокровища
-    private boolean isWinPlayer() {
-        int playerY = lastPlayerTurnCoord[0];
-        int playerX = lastPlayerTurnCoord[1];
-        return (playerY == treasureCoord[0] && playerX == treasureCoord[1]);
-    }
-
+    // Метод для стартовых приготовлений перед игрой.
+    // Разметить поле
+    // Обозначит участников, объяснить правила игры, расставить по полю
     private void initField() {
-        // Добавление пустых ячеек в матрицу
+        // Вот поле
+        // Добавление "пустых" ячеек в матрицу для инициализации поля
         for (int i = 0; i < FIELD_HEIGHT; i++) {
             for( int j = 0; j < FIELD_WIDTH; j++) {
                 field[i][j] = SYMBOL_EMPTY;
             }
         }
 
-        //TODO Учесть вариант, когда координаты могут сразу совпасть. дописать проверку
-        // Добавление в случайную позицию врага
-        int enemyY = random.nextInt(10);
-        int enemyX = random.nextInt(10);
-        field[enemyY][enemyX] = SYMBOL_ENEMY;
-        // Добавление в случайную позицию игрока
-        int playerY = random.nextInt(10);
-        int playerX = random.nextInt(10);
-        field[playerY][playerX] = SYMBOL_PLAYER;
-        // Добавление приза
-        int treasureY = random.nextInt(10);
-        int treasureX = random.nextInt(10);
-        // Запоминаем координаты приза на будущее
-        treasureCoord[0] = treasureY;
-        treasureCoord[1] = treasureX;
-        field[treasureX][treasureY] = SYMBOL_TREASURE;
+        // Кто участники, какие у вас Логотипы, какие у вас цели?
+        player = new Player();
+        enemy = new Enemy();
+        treasure = new Treasure();
+        player.setName("Робот-Искатель")
+                .setSymbol(SYMBOL_PLAYER)
+                .setWishTarget(treasure)
+                .setIgnoreTarget(enemy);
+        enemy.setName("Робот-Противник")
+                .setSymbol(SYMBOL_ENEMY)
+                .setWishTarget(player)
+                .setIgnoreTarget(treasure);
+        treasure.setName("Сокровище").setSymbol(SYMBOL_TREASURE);
+        //Участникам указали на их цели
+        //Участники, записывайтесь!
+        members = new ArrayList<>();
+        // Порядок важен
+        members.add(treasure);
+        members.add(player);
+        members.add(enemy);
+        // Участникам объяснили кто рулит игрой
+        setGameMasterToMembers(members);
+        // Ты будешь тут, ты тут, а ты вообще вот здесь
+        for (Point member: members) {
+            setMemberStartPosition(member); // дали роботу координаты
+            putMemberOnField(member); // разместили робота на поле
+        }
     }
 
+    // Метод, который выводит графическое отображения поля на консоль
     private void drawField() {
         for (int i = 0; i < FIELD_HEIGHT; i++) {
             for( int j = 0; j < FIELD_WIDTH; j++) {
@@ -172,5 +130,70 @@ public class RobotGame {
         // Отступы для красоты консольного отображения
         System.out.println();
         System.out.println();
+    }
+
+    // Метод, который выдает участнику координаты на поле
+    private void setMemberStartPosition (Point member) {
+        while(true) {
+            int memberY = random.nextInt(FIELD_HEIGHT);
+            int memberX = random.nextInt(FIELD_WIDTH);
+            if (field[memberY][memberX] == SYMBOL_EMPTY) {
+                member.setY(memberY).setX(memberX);
+                break;
+            }
+        }
+    }
+
+    // Метод, который размещает игрока на поле (его иконку\логотип)
+    public void putMemberOnField(Point member) {
+        int y = member.getY();
+        int x = member.getX();
+        field[y][x] = member.getSymbol();
+    }
+
+    // Метод, который всем участникам-роботам говорит кто правит игрой
+    public void setGameMasterToMembers(ArrayList<Point> members) {
+        for (Point member: members) {
+            member.setGame(this);
+        }
+    }
+
+    // метод, который сбрасывает отображение участника на его прошлом ходе
+    public void emptyMemberLastTurnPlace(Point point) {
+        int x = point.getX();
+        int y = point.getY();
+        field[y][x] = SYMBOL_EMPTY;
+    }
+
+    public char[][] getField() {
+        return field;
+    }
+
+    public Player getPlayer() {
+        return player;
+    }
+
+    public Enemy getEnemy() {
+        return enemy;
+    }
+
+    public Treasure getTreasure() {
+        return treasure;
+    }
+
+    public String getWinner() {
+        return winner;
+    }
+
+    public void setWinner(String winner) {
+        this.winner = winner;
+    }
+
+    public boolean getGameOverFlag() {
+        return isGameOver;
+    }
+
+    public void setGameOver(boolean gameOver) {
+        isGameOver = gameOver;
     }
 }

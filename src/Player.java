@@ -1,13 +1,13 @@
-import java.awt.*;
+
 
 /**
- * Created by v-aranto on 02.09.2016.
- * Класс для игрока
+ * Класс для робота-игрока
+ *
+ * @author  Artur Antonov
+ * @version 2.0.050916
  */
 public class Player extends Point {
 
-    public Player(int y, int x) {
-        super(y, x);
-        color = Color.GREEN;
-    }
+    // Робот-игрок взаимодействует с сокровищем и НЕ взаимодействует с роботом-противником
+
 }
