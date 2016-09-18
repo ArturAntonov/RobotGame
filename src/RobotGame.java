@@ -1,4 +1,6 @@
+import java.awt.*;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Random;
 
 /**
@@ -8,7 +10,7 @@ import java.util.Random;
  * Это основной класс процесса игры. Тут все и происходит
  *
  * @author  Artur Antonov
- * @version 2.0.050916
+ * @version 3.0.180916
  */
 public class RobotGame {
 
@@ -23,65 +25,95 @@ public class RobotGame {
 
 
     // Участники игры
-    Player player;
-    Enemy enemy;
-    Treasure treasure;
+    private Player player;
+    private Enemy enemy;
+    private Treasure treasure;
     // Список со всеми участниками игры
-    ArrayList<Point> members;
+    private ArrayList<Point> members;
 
     Random random = new Random();
-    //
-    private boolean isGameOver = false;
+
+    // Системные флаги
+    volatile boolean isRestarted = true;
+    private boolean isGameOver = true;
     private String winner = "";
+    int round = 1;
+
+    // Статусы игры
+    final int PLAYER_WIN_STATE = 0;
+    final int COMPUTER_WIN_STATE = 1;
+    final int NOT_OVER_STATE = 99;
+    int winner_state = NOT_OVER_STATE;
 
     // Поле для игры
     private char[][] field = new char[FIELD_HEIGHT][FIELD_WIDTH];
 
-    public static void main(String[] args) {
-        new RobotGame().go();
-    }
 
-    private void go() {
-        //инициализация игрового поля призом, врагом, игроком
-        initField();
-        // Начальная отрисовка игрового поля
-        drawField();
+    // Основной метод действия игры
+    public void go() {
 
-        // Основной цикл игры
-        while (!isGameOver) {
-            for (Point member : members) {
-                member.move();
-                if (member.isWin()) break;
+        // Графическое окно игры
+        MainWindow mainWindow = new MainWindow(FIELD_WIDTH, FIELD_HEIGHT);
+        mainWindow.setGame(this);
+        MainWindow.Canvas canvas = mainWindow.getCanvas();
+
+
+        while (true) { // Завершение цикла будет вместе с закрытием окна игры
+            if (isRestarted) {
+                //инициализация игрового поля призом, врагом, игроком
+                initField();
+                // Начальная отрисовка игрового поля
+                canvas.repaint();
+                isRestarted = false;
+                isGameOver = false;
+                mainWindow.setTitle("Robot Game Started. Count Enemy : " + round);
+                winner_state = NOT_OVER_STATE;
             }
-            drawField();
-            try {
-                Thread.sleep(TURN_DELAY);
-            } catch (InterruptedException ex) {
-                ex.getStackTrace();
+            // Основной цикл игры
+            while (!isGameOver) {
+                for (Point member : members) {
+                    member.move();
+                    canvas.repaint(); // новое место ( так больеш нравится)
+                    if (member.isWin()) break;
+                }
+//                canvas.repaint();   // старое место
+                try {
+                    Thread.sleep(TURN_DELAY);
+                } catch (InterruptedException ex) {
+                    ex.getStackTrace();
+                }
+            }
+//            System.out.println("--------ПОБЕДИТЕЛЬ ОПРЕДЕЛЕН--------");
+//            drawField();
+
+            // Чествование победителя
+            if (!winner.isEmpty()) {
+                switch (winner) {
+                    case "Player":
+//                    System.out.println("Победитель - Робот-Игрок!");
+                        mainWindow.setTitle("Победитель - Робот-Игрок!");
+                        winner_state = PLAYER_WIN_STATE;
+                        break;
+                    case "Enemy":
+//                    System.out.println("Победитель - Робот-Противник!");
+                        mainWindow.setTitle("Победитель - Робот-Противник!");
+                        winner_state = COMPUTER_WIN_STATE;
+                        break;
+                    default:
+//                    System.out.println("Ничья!");
+                }
+                canvas.repaint();
+                winner = ""; // обнулили победителя
+//                System.out.println("ROUND END");
             }
         }
-        System.out.println("--------ПОБЕДИТЕЛЬ ОПРЕДЕЛЕН--------");
-        drawField();
-
-        // Чествование победителя
-        switch (winner) {
-            case "Player":
-                System.out.println("Победитель - Робот-Игрок!");
-                break;
-            case "Enemy":
-                System.out.println("Победитель - Робот-Противник!");
-                break;
-            default:
-                System.out.println("Ничья!");
-        }
-
     }
 
 
     // Метод для стартовых приготовлений перед игрой.
     // Разметить поле
     // Обозначит участников, объяснить правила игры, расставить по полю
-    private void initField() {
+    public void initField() {
         // Вот поле
         // Добавление "пустых" ячеек в матрицу для инициализации поля
         for (int i = 0; i < FIELD_HEIGHT; i++) {
@@ -97,12 +129,14 @@ public class RobotGame {
         player.setName("Робот-Искатель")
                 .setSymbol(SYMBOL_PLAYER)
                 .setWishTarget(treasure)
-                .setIgnoreTarget(enemy);
+                .setIgnoreTarget(enemy)
+                .setColor(Color.GREEN);
         enemy.setName("Робот-Противник")
                 .setSymbol(SYMBOL_ENEMY)
                 .setWishTarget(player)
-                .setIgnoreTarget(treasure);
-        treasure.setName("Сокровище").setSymbol(SYMBOL_TREASURE);
+                .setIgnoreTarget(treasure)
+                .setColor(Color.RED);
+        treasure.setName("Сокровище").setSymbol(SYMBOL_TREASURE).setColor(Color.YELLOW);
         //Участникам указали на их цели
         //Участники, записывайтесь!
         members = new ArrayList<>();
@@ -110,6 +144,18 @@ public class RobotGame {
         members.add(treasure);
         members.add(player);
         members.add(enemy);
+        //В новом раунде (кроме первого) добавляем еще одного противника
+        // Нового противника добавляем в список Нежелательных целей для игрока
+        for (int i = 1; i < round; i++) {
+            Enemy newEnemy = new Enemy();
+            newEnemy.setName("Робот-Противник")
+                    .setSymbol(SYMBOL_ENEMY)
+                    .setWishTarget(player)
+                    .setIgnoreTarget(treasure)
+                    .setColor(Color.RED);
+            members.add(newEnemy);
+            player.addIgnoreTarget(newEnemy);
+        }
         // Участникам объяснили кто рулит игрой
         setGameMasterToMembers(members);
         // Ты будешь тут, ты тут, а ты вообще вот здесь
@@ -132,7 +178,7 @@ public class RobotGame {
         System.out.println();
     }
 
-    // Метод, который выдает участнику координаты на поле
+    // Метод, который выдает участнику координаты на поле (не имеет какой-то привязки к целям)
     private void setMemberStartPosition (Point member) {
         while(true) {
             int memberY = random.nextInt(FIELD_HEIGHT);
@@ -179,6 +225,10 @@ public class RobotGame {
 
     public Treasure getTreasure() {
         return treasure;
+    }
+
+    public ArrayList<Point> getMembers() {
+        return members;
     }
 
     public String getWinner() {

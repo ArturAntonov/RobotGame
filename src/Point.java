@@ -1,4 +1,5 @@
 import java.awt.*;
+import java.util.ArrayList;
 import java.util.Random;
 
 /**
@@ -8,13 +9,13 @@ import java.util.Random;
  * А зачем делать классы наследники. если у всех все одно и тоже, разница только в цвете(иконке)?
  *
  * @author  Artur Antonov
- * @version 2.0.050916
+ * @version 3.0.180916
  */
 
 public class Point {
 
     // Имя робота
-    private String name;
+    protected String name;
 
     // Цвет для графической отрисовки
     private Color color;
@@ -114,12 +115,20 @@ public class Point {
                 break;
             }
         }
-        System.out.println(this.name + " сделал ход");
+//        System.out.println(this.name + " сделал ход");
     }
 
     // Метод, который проверяет совпадение местоположения с другим роботом
     public boolean isFindOther(Point point) {
        return this.x == point.getX() && this.y == point.getY();
+    }
+
+    // Перегруженный метод для сравнения с положением множества целей (для списка всех врагов)
+    public boolean isFindOther(ArrayList<Point> points) {
+        for (Point point : points) {
+            if (this.x == point.getX() && this.y == point.getY()) return true;
+        }
+        return false;
     }
 
     // Метод, который проверяет условие победы (совпали координаты с желаемой целью-роботом)
